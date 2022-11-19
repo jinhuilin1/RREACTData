@@ -1,21 +1,26 @@
 ---
-title: "RREACT"
+title: "RREACT Overdose Analysis"
 output: pdf_document
 date: "2022-11-18"
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+library(readxl)
 ```
 
-## R Markdown
+In this Exploratory Data Analysis, the Overdoses data set will be analyzed. The data set consists of 39 columns and 
+11,501 during the time frame of January 1, 2020 - November 18, 2022.
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+## Overdose Data
 
-```{r cars}
-summary(cars)
+Column Names:
+
+```{r cars, echo=FALSE, message=FALSE}
+Overdose_Statistics <- read_excel("C:/Users/kresc/Downloads/Overdose Statistics.xlsx")
+colnames(Overdose_Statistics)
+nrow(Overdose_Statistics)
 ```
 
 
