@@ -7,20 +7,64 @@ date: "2022-11-18"
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 library(readxl)
+library(tidyverse)
 ```
 
-In this Exploratory Data Analysis, the Overdoses data set will be analyzed. The data set consists of 39 columns and 
-11,501 during the time frame of January 1, 2020 - November 18, 2022.
+# Introduction
+
+This data set contains statistics for individuals who suffer from a substance use disorder during the time frame of January 1, 2020 to November 17, 2022. The data set contains 35 variables and 11,501 rows of patient data.This data set contains both quantitative and qualitative variables. After performing an exploratory data analysis on the data set, it is evident that there are 8 duplicated rows which will be removed from the data set. 
 
 
 ## Overdose Data
 
 Column Names:
 
-```{r cars, echo=FALSE, message=FALSE}
-Overdose_Statistics <- read_excel("C:/Users/kresc/Downloads/Overdose Statistics.xlsx")
+```{r cars, echo=FALSE, message=FALSE, include = FALSE}
+# Overdose_Statistics <- read_excel("C:/Users/kresc/Downloads/Overdose Statistics.xlsx")
+Overdose_Statistics <- read_excel("/Users/krescenskok/Downloads/Overdose Statistics.xlsx")
 colnames(Overdose_Statistics)
 nrow(Overdose_Statistics)
+sum(duplicated(Overdose_Statistics) == "TRUE")
+Overdose_Statistics = (unique(Overdose_Statistics))
+view(Overdose_Statistics)
 ```
+
+| Attribute Name                      | Description                                                  | Type of Data |
+|-------------------------------------|--------------------------------------------------------------|--------------|
+| Organization                        | Organization of the event                                    | Nominal      |
+| Contact Start Date/Time             | Start date and time of the event                             | Nominal      |
+| Contact End Date/Time               | End date and time of the event                               | Interval     |
+| Patient ID                          | ID of the patient                                            | Interval     |
+| Patient Funding Source              | Funding source of the patient                                | Nominal      |
+| Original Referral Source            | Referral source of the patient                               | Nominal      |
+| Date of Birth                       | Date of birth of the patient                                 | Interval     |
+| Age                                 | Age of the patient                                           | Interval     |
+| Gender                              | Gender of the patient                                        | Nominal      |
+| Race/Ethnicity                      | Race/Ethnicity of the patient                                | Nominal      |
+| Demographics_Ethnicity              | Demographics ethnicity of the patient                        | Nominal      |
+| Homeless                            | Whether the patient is homeless or not                       | Nominal      |
+| Precinct # of the Primary Address   | Zone # of the primary address                                | Nominal      |
+| Priority Address for Outreach       | Priority address for the patient                             | Nominal      |
+| Do Not Contact?                     | Whether the address is dangerous or not                      | Nominal      |
+| Possible Warrants                   | Determines if the patient has warrants                       | Nominal      |
+| Suspected Human Trafficking?        | Determines if the patient is suspected of Human Trafficking  | Nominal      | 
+| Suspected Narcotics Activity?       | Determines if the patient is suspected of narcotics activity | Nominal      |
+| Shift                               | Shift of the response unit                                   | Nominal      |
+| Medic Unit                          | Medic unit of the unit at the incident                       | Nominal      |
+| Primary Impression                  | Primary Impression of the incident                           | Nominal      |
+| Secondary Impression                | Secondary Impression of the incident                         | Nominal      |
+| EMD Complaint                       | EMD complaint                                                | Nominal      |
+| Disposition                         | Disposition of the incident                                  | Nominal      |
+| Alcohol/Drugs                       | Whether alcohol or drugs were involved in the incident       | Nominal      |
+| Naloxone                            | Whether naloxone was given during the incident               | Nominal      |
+| Loss of Consciousness               | Did the patient lose consciousness?                          | Nominal      |
+| Refusal or Transport?               | Did the patient refuse the transport to the hospital?        | Nominal      |
+| Date & Time of Transport            | Date & Time of the transport                                 | Interval     |
+| Incident Address                    | Address of the overdose incident                             | Nominal      |
+
+
+
+
+
 
 
