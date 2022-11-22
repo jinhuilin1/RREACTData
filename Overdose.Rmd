@@ -17,8 +17,6 @@ This data set contains statistics for individuals who suffer from a substance us
 
 ## Overdose Data
 
-Column Names:
-
 ```{r cars, echo=FALSE, message=FALSE, include = FALSE}
 # Overdose_Statistics <- read_excel("C:/Users/kresc/Downloads/Overdose Statistics.xlsx")
 Overdose_Statistics <- read_excel("/Users/krescenskok/Downloads/Overdose Statistics.xlsx")
@@ -63,6 +61,10 @@ view(Overdose_Statistics)
 | Incident Address                    | Address of the overdose incident                             | Nominal      |
 
 
+```{r}
+Overdose_Statistics$Age = as.numeric(as.character(Overdose_Statistics$Age))
+boxplot(Overdose_Statistics$Age, las=2, main="Boxplot of Continuous Predictors", cex.axis=0.7)
+```
 
 
 
