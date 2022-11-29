@@ -8,28 +8,47 @@ date: "2022-11-18"
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 library(readxl)
 library(tidyverse)
+library(data.table)
+library(ggplot2)
+library(reshape2)
+library(pls)
+library(tidyverse)
+library(gridExtra)
+library(ISLR)
+library(MASS)
+library(boot)
+library(glmnet)
+library(tree)
+library(randomForest)
+library(gbm)
+library(caret)
+library(e1071)
+library(class)
+library(caTools)
 ```
 
 # Introduction
 
-This data set contains statistics for individuals who suffer from a substance use disorder during the time frame of January 1, 2020 to November 17, 2022. The data set contains 35 variables and 11,501 rows of patient data.This data set contains both quantitative and qualitative variables. After performing an exploratory data analysis on the data set, it is evident that there are 8 duplicated rows which will be removed from the data set. 
+This data set contains statistics for individuals who suffer from a substance use disorder during the time frame of January 1, 2020 to November 17, 2022. The data set contains 35 variables and 11,501 rows of patient data. This data set contains both quantitative and qualitative variables. After performing an exploratory data analysis on the data set, it is evident that there are 8 duplicated rows which will be removed from the data set. There are 11,500 null values for the column `Primary Impression (NEMSIS)` and 11,501 null values for the column `Secondary Impression (NEMSIS)`, so these columns will be removed from the data set. In addition, the rows where the `Medic Unit` is "REACT1" or "RREACT 1", will be removed as they do not indicate an overdose transport. The goal of this analysis report is to predict whether or not an individual who suffered from a substance use disorder refuses or accepts a transport to a hospital. 
 
 
 ## Overdose Data
 
-```{r cars, echo=FALSE, message=FALSE, include = FALSE}
+```{r overdose, echo=FALSE, message=FALSE, include = FALSE}
 # Overdose_Statistics <- read_excel("C:/Users/kresc/Downloads/Overdose Statistics.xlsx")
 Overdose_Statistics <- read_excel("/Users/krescenskok/Downloads/Overdose Statistics.xlsx")
+Overdose_Statistics = as.data.frame(Overdose_Statistics)
 colnames(Overdose_Statistics)
 nrow(Overdose_Statistics)
-sum(duplicated(Overdose_Statistics) == "TRUE")
+sum(is.na(Overdose_Statistics$`Primary Impression (NEMSIS)`))
+sum(is.na(Overdose_Statistics$`Secondary Impression (NEMSIS)`))
 Overdose_Statistics = (unique(Overdose_Statistics))
-view(Overdose_Statistics)
+Overdose_Statistics = subset(Overdose_Statistics, select = -c(`Primary Impression (NEMSIS)`, `Secondary Impression (NEMSIS)`))
+Overdose_Statistics = Overdose_Statistics[!(Overdose_Statistics$`Medic Unit`=="REACT1" | Overdose_Statistics$`Medic Unit` == "RREACT 1"),]
 ```
 
 | Attribute Name                      | Description                                                  | Type of Data |
 |-------------------------------------|--------------------------------------------------------------|--------------|
-| Organization                        | Organization of the event                                    | Nominal      |
 | Contact Start Date/Time             | Start date and time of the event                             | Nominal      |
 | Contact End Date/Time               | End date and time of the event                               | Interval     |
 | Patient ID                          | ID of the patient                                            | Interval     |
@@ -61,10 +80,98 @@ view(Overdose_Statistics)
 | Incident Address                    | Address of the overdose incident                             | Nominal      |
 
 
-```{r}
+
+Looking at the box plot of Age, there are no obvious outliers, therefore, no rows will be removed. 
+
+```{r boxplot, echo=FALSE, message=FALSE, include = FALSE}
 Overdose_Statistics$Age = as.numeric(as.character(Overdose_Statistics$Age))
-boxplot(Overdose_Statistics$Age, las=2, main="Boxplot of Continuous Predictors", cex.axis=0.7)
+boxplot(Overdose_Statistics$Age, las=2, main="Boxplot of Age", cex.axis=0.7)
 ```
+
+## Training/Testing the Data
+
+In order to model the data, the data set will be split into a training and testing data set. The training data set will be 70% of the original data set and the testing data set will be the remaining 30%. Since `Secondary Impression` could potentially be highly correlated with `Primary Impression` this could cause collinearity as well as having 9,974 null values, over half the number of rows, this variable will be removed from the data set. Another variable that will be eliminated is `Disposition` as this directly correlates to the response variable.
+
+
+```{r split}
+set.seed(100)
+sample <- sample.split(Overdose_Statistics$Age, SplitRatio = 0.7)
+train = subset(Overdose_Statistics, sample == TRUE)
+test = subset(Overdose_Statistics, sample == FALSE)
+train$RefusalOrTransport= as.factor(train$`Refusal or Transport?`)
+test$`Refusal or Transport?`= as.factor(test$`Refusal or Transport?`)
+```
+
+
+
+```{r asFactor, include = FALSE}
+train$`Patient Funding Source` = as.factor(train$`Patient Funding Source`)
+train$`Original Referral Source` = as.factor(train$`Original Referral Source`)
+train$Gender = as.factor(train$Gender)
+train$`Race/Ethnicity` = as.factor(train$`Race/Ethnicity`)
+train$Demographics_Ethnicity = as.factor(train$Demographics_Ethnicity)
+train$Homeless = as.factor(train$Homeless)
+train$`Precinct # of the Primary Address` = as.factor(train$`Precinct # of the Primary Address`)
+train$`Do Not Contact?`= as.factor(train$`Do Not Contact?`)
+train$`Possible Warrants?` = as.factor(train$`Possible Warrants?`)
+train$`Suspected Human Trafficking?`= as.factor(train$`Suspected Human Trafficking?`)
+train$`Suspected Narcotics Activity?`= as.factor(train$`Suspected Narcotics Activity?`)
+train$Shift = as.factor(train$Shift)
+train$`Medic Unit` = as.factor(train$`Medic Unit`)
+train$`Primary Impression`= as.factor(train$`Primary Impression`)
+train$`Secondary Impression` = as.factor(train$`Secondary Impression`)
+train$`EMD Complaint`= as.factor(train$`EMD Complaint`)
+train$Disposition = as.factor(train$Disposition)
+train$`Alcohol / Drugs?` = as.factor(train$`Alcohol / Drugs?`)
+train$`Naloxone Given?` = as.factor(train$`Naloxone Given?`)
+train$`Loss of Consciousness?` = as.factor(train$`Loss of Consciousness?`)
+```
+
+The first model that will be fitted is the Generalized linear model, using the family, binomial. The following variables were used as explanatory variables: 
+ 
+  * `Patient Funding Source`
+  * `Original Referral Source`
+  * `Gender`, `Race/Ethnicity`
+  * `Demographics_Ethnicity`
+  * `Homeless`
+  * `Precinit # of the Primary Address`
+  * `Do Not Contact?`
+  * `Possible Warrants?`
+  * `Suspected Human Trafficking?`
+  * `Suspected Narcotics Activity?`
+  * `Shift`
+  * `Medic Unit`
+  * `Primary Impression`
+  * `EMD Complaint`
+  * `Alocohol / Drugs?`
+  * `Naloxone Given?`
+  * `Loss of Consciousness?`
+
+Based on the summary of the model, the following variables were significant in predicting the response variable:
+
+ * `Homeless`
+ * `Possible Warrants?`
+ * `Shift`
+ * `Alcohol / Drugs?`
+
+ 
+
+
+```{r glm, echo=FALSE}
+modelOne = glm(RefusalOrTransport ~ `Patient Funding Source` + `Original Referral Source` + Gender + `Race/Ethnicity`+ Demographics_Ethnicity + Homeless +  `Precinct # of the Primary Address` + `Do Not Contact?` + `Possible Warrants?` + `Suspected Human Trafficking?` + `Suspected Narcotics Activity?` + Shift + `Medic Unit` + `Primary Impression` + `EMD Complaint` + `Alcohol / Drugs?` + `Naloxone Given?` + `Loss of Consciousness?` + Age, data = train, family='binomial', na.action(na.pass))
+summary(modelOne)
+```
+
+Based on the results of the previous model, the non-significant variables have been removed from the model. Looking at the summary of the new model, 
+
+```{r}
+modelTwo = glm(RefusalOrTransport ~ `Homeless` + `Possible Warrants?` + `Shift` + `Alcohol / Drugs?`, data = train, family='binomial')
+summary(modelTwo)
+
+modelThree = glm(RefusalOrTransport ~ `Homeless` + `Possible Warrants?` + Age, data = train, family='binomial')
+summary(modelThree)
+```
+
 
 
 
