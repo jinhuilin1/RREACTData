@@ -15,7 +15,6 @@ library(pls)
 library(tidyverse)
 library(gridExtra)
 library(ISLR)
-library(MASS)
 library(boot)
 library(glmnet)
 library(tree)
@@ -25,6 +24,7 @@ library(caret)
 library(e1071)
 library(class)
 library(caTools)
+library(psych)
 ```
 
 # Introduction
@@ -98,7 +98,7 @@ set.seed(100)
 sample <- sample.split(Overdose_Statistics$Age, SplitRatio = 0.7)
 train = subset(Overdose_Statistics, sample == TRUE)
 test = subset(Overdose_Statistics, sample == FALSE)
-train$RefusalOrTransport= as.factor(train$`Refusal or Transport?`)
+train$RefusalOrTransport = as.factor(train$`Refusal or Transport?`)
 test$`Refusal or Transport?`= as.factor(test$`Refusal or Transport?`)
 ```
 
@@ -158,11 +158,11 @@ Based on the summary of the model, the following variables were significant in p
 
 
 ```{r glm, echo=FALSE}
-modelOne = glm(RefusalOrTransport ~ `Patient Funding Source` + `Original Referral Source` + Gender + `Race/Ethnicity`+ Demographics_Ethnicity + Homeless +  `Precinct # of the Primary Address` + `Do Not Contact?` + `Possible Warrants?` + `Suspected Human Trafficking?` + `Suspected Narcotics Activity?` + Shift + `Medic Unit` + `Primary Impression` + `EMD Complaint` + `Alcohol / Drugs?` + `Naloxone Given?` + `Loss of Consciousness?` + Age, data = train, family='binomial', na.action(na.pass))
+modelOne = glm(RefusalOrTransport ~ Age + `Patient Funding Source` + `Original Referral Source` + Gender + `Race/Ethnicity`+ Demographics_Ethnicity + Homeless +  `Precinct # of the Primary Address` + `Do Not Contact?` + `Possible Warrants?` + `Suspected Human Trafficking?` + `Suspected Narcotics Activity?` + Shift + `Medic Unit` + `Primary Impression` + `EMD Complaint` + `Alcohol / Drugs?` + `Naloxone Given?` + `Loss of Consciousness?`, data = train, family='binomial', na.action(na.pass))
 summary(modelOne)
 ```
 
-Based on the results of the previous model, the non-significant variables have been removed from the model. Looking at the summary of the new model, 
+Based on the results of the previous model, the non-significant variables have been removed from the model. Looking at the summary of the new model, it appears that the model is actually worse than the previous model. Focusing on the AIC, the refined model has an AIC value of 6,956.10 whereas the first model has an AIC value of 1,196.30. Therefore, since the AIC value increased, the model became worse. 
 
 ```{r}
 modelTwo = glm(RefusalOrTransport ~ `Homeless` + `Possible Warrants?` + `Shift` + `Alcohol / Drugs?`, data = train, family='binomial')
@@ -172,8 +172,165 @@ modelThree = glm(RefusalOrTransport ~ `Homeless` + `Possible Warrants?` + Age, d
 summary(modelThree)
 ```
 
+```{r}
+calc_mode = function(x) {
+  distinct_values = unique(x)
+  distinct_tabulate = tabulate(match(x, distinct_values))
+  distinct_values[which.max(distinct_tabulate)]
+}
+
+calc_mode(train$RefusalOrTransport)
+
+```
 
 
+```{r}
+outcome$RefusalOrTransport
+outcome = train %>%
+  dplyr::select(RefusalOrTransport)
+explanatoryVariables = train %>%
+  dplyr::select(-RefusalOrTransport)
+str(explanatoryVariables)
+```
+
+Homeless is the only variable with 2 factors. We will convert the yes values to 1 and the no values to 0.
+
+```{r}
+explanatoryVariables$Homeless = ifelse(explanatoryVariables$Homeless == "yes", 1, 0)
+
+```
 
 
+```{r}
+PatientFundingSource = as.data.frame(dummy.code(explanatoryVariables$`Patient Funding Source`))
+OriginalReferralSource = as.data.frame(dummy.code(explanatoryVariables$`Original Referral Source`))
+Gender = as.data.frame(dummy.code(explanatoryVariables$`Gender`))
+RaceEthnicity = as.data.frame(dummy.code(explanatoryVariables$`Race/Ethnicity`))
+Demographics_Ethnicity = as.data.frame(dummy.code(explanatoryVariables$`Demographics_Ethnicity`))
+Precinct = as.data.frame(dummy.code(explanatoryVariables$`Precinct # of the Primary Address`))
+DoNotContact = as.data.frame(dummy.code(explanatoryVariables$`Do Not Contact?`))
+PossibleWarrants = as.data.frame(dummy.code(explanatoryVariables$`Possible Warrants?`))
+SuspectedHumanTrafficking = as.data.frame(dummy.code(explanatoryVariables$`Suspected Human Trafficking?`))
+SuspectedNarcoticsActivity = as.data.frame(dummy.code(explanatoryVariables$`Suspected Narcotics Activity?`))
+Shift = as.data.frame(dummy.code(explanatoryVariables$`Shift`))
+MedicUnit = as.data.frame(dummy.code(explanatoryVariables$`Medic Unit`))
+PrimaryImpression = as.data.frame(dummy.code(explanatoryVariables$`Primary Impression`))
+SecondaryImpression = as.data.frame(dummy.code(explanatoryVariables$`Secondary Impression`))
+EMDComplaint = as.data.frame(dummy.code(explanatoryVariables$`EMD Complaint`))
+Disposition = as.data.frame(dummy.code(explanatoryVariables$`Disposition`))
+AlcoholDrugs = as.data.frame(dummy.code(explanatoryVariables$`Alcohol / Drugs?`))
+NaloxoneGiven = as.data.frame(dummy.code(explanatoryVariables$`Naloxone Given?`))
+LossOfConsciousness = as.data.frame(dummy.code(explanatoryVariables$`Loss of Consciousness?`))
+```
+
+```{r}
+OriginalReferralSource = rename(OriginalReferralSource, other_OriginalReferralSource = Other)
+Gender = rename(Gender, unknown_gender = Unknown)
+RaceEthnicity = rename(RaceEthnicity, unknown_RaceEthnicity = Unknown)
+RaceEthnicity = rename(RaceEthnicity, other_RaceEthnicity = Other)
+RaceEthnicity = rename(RaceEthnicity, HispanicOrLatino_RaceEthnicity = "Hispanic or Latino")
+Demographics_Ethnicity = rename(Demographics_Ethnicity, unknown_Demographics_Ethnicity = Unknown)
+DoNotContact = rename(DoNotContact, unknown_DoNotContact = Unknown)
+DoNotContact = rename(DoNotContact, yes_DoNotContact = Yes)
+DoNotContact = rename(DoNotContact, no_DoNotContact = No)
+PossibleWarrants = rename(PossibleWarrants, unknown_PossibleWarrants = Unknown)
+PossibleWarrants = rename(PossibleWarrants, yes_PossibleWarrants = Yes)
+PossibleWarrants = rename(PossibleWarrants, no_PossibleWarrants = No)
+SuspectedHumanTrafficking = rename(SuspectedHumanTrafficking, unknown_SuspectedHumanTrafficking = Unknown)
+SuspectedHumanTrafficking = rename(SuspectedHumanTrafficking, yes_SuspectedHumanTrafficking = Yes)
+SuspectedHumanTrafficking = rename(SuspectedHumanTrafficking, no_SuspectedHumanTrafficking = No)
+SuspectedNarcoticsActivity = rename(SuspectedNarcoticsActivity, unknown_SuspectedNarcoticsActivity = Unknown)
+SuspectedNarcoticsActivity = rename(SuspectedNarcoticsActivity, yes_SuspectedNarcoticsActivity = Yes)
+NaloxoneGiven = rename(NaloxoneGiven, unknown_NaloxoneGiven = Unknown)
+NaloxoneGiven = rename(NaloxoneGiven, yes_NaloxoneGiven = Yes)
+NaloxoneGiven = rename(NaloxoneGiven, no_NaloxoneGiven = No)
+LossOfConsciousness = rename(LossOfConsciousness, unknown_LossOfConsciousness = Unknown)
+LossOfConsciousness = rename(LossOfConsciousness, yes_LossOfConsciousness = Yes)
+LossOfConsciousness = rename(LossOfConsciousness, no_LossOfConsciousness = No)
+AlcoholDrugs = rename(AlcoholDrugs, unknown_AlcoholDrugs = Unknown)
+MedicUnit = rename(MedicUnit, UnitThree_MedicUnit = "3 Unit")
+MedicUnit = rename(MedicUnit, UnitTwo_MedicUnit = "2 Unit")
+MedicUnit = rename(MedicUnit, RREACT_MedicUnit = RREACT)
+PrimaryImpression = rename(PrimaryImpression, OtherOpioids_PrimaryImpression = "Overdose - Other opioids")
+PrimaryImpression = rename(PrimaryImpression, OverdoseHeroin_PrimaryImpression = "Overdose - Heroin")
+PrimaryImpression = rename(PrimaryImpression, OverdoseUnspecified_PrimaryImpression = "Overdose - Unspecified")
+PrimaryImpression = rename(PrimaryImpression, AlteredMentalStatus_PrimaryImpression = "Altered Mental Status")
+PrimaryImpression = rename(PrimaryImpression, Poisoning_PrimaryImpression = "Poisoning / Drug Ingestion")
+PrimaryImpression = rename(PrimaryImpression, SubstanceAbuse_PrimaryImpression = "Substance abuse")
+PrimaryImpression = rename(PrimaryImpression, OpiodRelatedDisorders_PrimaryImpression = "Opioid related disorders")
+PrimaryImpression = rename(PrimaryImpression, BehavioralPsychiatric_PrimaryImpression = "Behavioral/psychiatric episode")
+PrimaryImpression = rename(PrimaryImpression, NoComplaints_PrimaryImpression = "No Complaints or Injury/Illness Noted")
+PrimaryImpression = rename(PrimaryImpression, Opium_PrimaryImpression = "Overdose - Opium")
+PrimaryImpression = rename(PrimaryImpression, SyntheticNarcotics_PrimaryImpression = "Overdose - Synthetic narcotics")
+PrimaryImpression = rename(PrimaryImpression, Cocaine_PrimaryImpression = "Overdose - Cocaine")
+PrimaryImpression = rename(PrimaryImpression, Seizures_PrimaryImpression = "Seizures")
+PrimaryImpression = rename(PrimaryImpression, Alcohol_PrimaryImpression = "Alcohol use")
+PrimaryImpression = rename(PrimaryImpression, CardiacArrest_PrimaryImpression = "Cardiac arrest")
+PrimaryImpression = rename(PrimaryImpression, AbdominalPain_PrimaryImpression = "Abdominal Pain")
+PrimaryImpression = rename(PrimaryImpression, Methadone_PrimaryImpression = "Overdose - Methadone")
+PrimaryImpression = rename(PrimaryImpression, Injury_PrimaryImpression = "Injury")
+PrimaryImpression = rename(PrimaryImpression, GeneralizedWeakness_PrimaryImpression = "Generalized Weakness")
+PrimaryImpression = rename(PrimaryImpression, Amphetamine_PrimaryImpression = "Overdose - Amphetamine")
+PrimaryImpression = rename(PrimaryImpression, Malaise_PrimaryImpression = "Malaise")
+PrimaryImpression = rename(PrimaryImpression, AcuteRespDistress_PrimaryImpression = "Acute Respiratory Distress (Dyspnea)")
+PrimaryImpression = rename(PrimaryImpression, None_PrimaryImpression = "None")
+PrimaryImpression = rename(PrimaryImpression, Cannabis_PrimaryImpression = "Overdose - Cannabis")
+PrimaryImpression = rename(PrimaryImpression, SuicidalIdeation_PrimaryImpression = "Suicidal Ideation")
+PrimaryImpression = rename(PrimaryImpression, ExtremityPain_PrimaryImpression = "Extremity Pain")
+PrimaryImpression = rename(PrimaryImpression, SuicideAttempt_PrimaryImpression = "Suicide attempt")
+PrimaryImpression = rename(PrimaryImpression, BackPain_PrimaryImpression = "Back Pain")
+PrimaryImpression = rename(PrimaryImpression, InjuryOfHead_PrimaryImpression = "Injury of Head")
+PrimaryImpression = rename(PrimaryImpression, Hallucinogens_PrimaryImpression = "Overdose - Hallucinogens")
+PrimaryImpression = rename(PrimaryImpression, SyncopeFainting_PrimaryImpression = "Syncope / Fainting")
+PrimaryImpression = rename(PrimaryImpression, Benzodiazepine_PrimaryImpression = "Overdose - Benzodiazepine")
+PrimaryImpression = rename(PrimaryImpression, DiabeticHyperglycemia_PrimaryImpression = "Diabetic Hyperglycemia")
+PrimaryImpression = rename(PrimaryImpression, Fatigue_PrimaryImpression = "Fatigue")
+PrimaryImpression = rename(PrimaryImpression, SyntheticMarijuana_PrimaryImpression = "Overdose - Synthetic marijuana")
+PrimaryImpression = rename(PrimaryImpression, Vomiting_PrimaryImpression = "Vomiting")
+PrimaryImpression = rename(PrimaryImpression, ChestPainBreathing_PrimaryImpression = "Chest pain on breathing")
+PrimaryImpression = rename(PrimaryImpression, Confusion_PrimaryImpression = "Confusion/Delirium")
+PrimaryImpression = rename(PrimaryImpression, OtherStimulant_PrimaryImpression = "Other stimulant related disorders")
+PrimaryImpression = rename(PrimaryImpression, OverdoseAlcohol_PrimaryImpression = "Overdose - Alcohol")
+PrimaryImpression = rename(PrimaryImpression, Headache_PrimaryImpression = "Headache")
+PrimaryImpression = rename(PrimaryImpression, CardiacArrhythmiia_PrimaryImpression = "Cardiac arrhythmia/dysrhythmia")
+SecondaryImpression = rename(SecondaryImpression, Fever_SecondaryImpression = "Fever")
+SecondaryImpression = rename(SecondaryImpression, RespiratoryArrest_SecondaryImpression = "Respiratory Arrest")
+SecondaryImpression = rename(SecondaryImpression, Acetaminophen_SecondaryImpression = "Overdose - Acetaminophen")
+SecondaryImpression = rename(SecondaryImpression, CocaineRelatedDisorder_SecondaryImpression = "Cocaine related disorders")
+SecondaryImpression = rename(SecondaryImpression, DiabeticHypoglycemia_SecondaryImpression= "Diabetic Hypoglycemia")
+SecondaryImpression = rename(SecondaryImpression, Dizziness_SecondaryImpression = "Dizziness")
+SecondaryImpression = rename(SecondaryImpression, Sedative_SecondaryImpression = "Sedative, hypnotic, or anxiolytic related disorders")
+SecondaryImpression = rename(SecondaryImpression, InjuryOfFace_SecondaryImpression = "Injury of Face")
+SecondaryImpression = rename(SecondaryImpression, Hypertension_SecondaryImpression = "Hypertension")
+SecondaryImpression = rename(SecondaryImpression, Hypoglycemia_SecondaryImpression = "Hypoglycemia (Not Diabetic)")
+SecondaryImpression = rename(SecondaryImpression, Asthma_SecondaryImpression = "Asthma")
+SecondaryImpression = rename(SecondaryImpression, RespiratoryFailure_SecondaryImpression = "Respiratory Failure")
+SecondaryImpression = rename(SecondaryImpression, SepticShock_SecondaryImpression = "Septic Shock")
+SecondaryImpression = rename(SecondaryImpression, Hyperglycemia_SecondaryImpression = "Hyperglycemia (Not Diabetic)")
+SecondaryImpression = rename(SecondaryImpression, Hypotension_SecondaryImpression = "Hypotension")
+SecondaryImpression = rename(SecondaryImpression, Hypothermia_SecondaryImpression = "Hypothermia")
+SecondaryImpression = rename(SecondaryImpression, AlteredMentalStatus_SecondaryImpression = "Altered Mental Status")
+
+explanatoryVariables <- cbind(explanatoryVariables, PatientFundingSource, OriginalReferralSource, Gender, RaceEthnicity, Demographics_Ethnicity, Precinct, DoNotContact, PossibleWarrants, SuspectedHumanTrafficking, SuspectedNarcoticsActivity, Shift, MedicUnit, PrimaryImpression, SecondaryImpression, EMDComplaint, Disposition, AlcoholDrugs, NaloxoneGiven, LossOfConsciousness)
+explanatoryVariables
+explanatoryVariables = explanatoryVariables %>%
+  dplyr::select(-c(`Patient ID`, `Date of Birth`, `Contact Start Date/Time`, `Contact End Date/Time`, `Patient Funding Source`, `Original Referral Source`, `Gender`, `Race/Ethnicity`, `Demographics_Ethnicity`, `Precinct # of the Primary Address`,  `Priority Address for Outreach`, `Do Not Contact?`, `Possible Warrants?`, `Suspected Human Trafficking?`, `Suspected Narcotics Activity?`, Shift, `Medic Unit`, `Primary Impression`, `Secondary Impression`, `EMD Complaint`, `Disposition`, `Alcohol / Drugs?`, `Naloxone Given?`, `Loss of Consciousness?`, `Refusal or Transport?`, `Transported to (Hospital Name)`, `Date & Time of Transport`, `Incident Address`))
+
+head(explanatoryVariables)
+```
+
+```{r}
+set.seed(100)
+smp_size = floor(.80 * nrow(explanatoryVariables))
+train_ind <- sample(seq_len(nrow(explanatoryVariables)), size = smp_size)
+explanatory_train <- explanatoryVariables[train_ind, ]
+explanatory_test <- explanatoryVariables[-train_ind, ]
+outcome_train <- outcome[train_ind, ]
+outcome_test <- outcome[-train_ind, ]
+```
+
+
+```{r}
+k = knn(train = explanatory_train, test = explanatory_test, cl = outcome_train, k=21)
+```
 
